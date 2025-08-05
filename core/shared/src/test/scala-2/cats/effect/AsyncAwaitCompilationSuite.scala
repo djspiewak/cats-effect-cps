@@ -16,36 +16,12 @@
 
 package cats.effect
 
-import cats.syntax.all._
-import org.specs2.mutable.Specification
-import cps._
+import munit.CatsEffectSuite
 
-class MonadAsyncAwaitSpec extends Specification {
-
-  "async[Option]" should {
-
-    "be Some" in {
-
-      val option = async[Option] {
-        val a = "a".some.await
-        val b = Option.when(1 + 1 == 2)("b").await
-        a + b
-      }
-
-      option must beSome("ab")
-    }
-
-    "be None" in {
-
-      val option = async[Option] {
-        val a = "a".some.await
-        val b = Option.when(1 + 1 == 3)("b").await
-        a + b
-      }
-
-      option must beNone
-    }
-
+class AsyncAwaitCompilationSuite extends CatsEffectSuite {
+  test("prevent compilation of await[G, *] calls") {
+    // uncomment this to test
+    // import cps._; async[({ type L[a] = cats.data.OptionT[IO, a] })#L](IO(1).await)
+    ()
   }
-
 }

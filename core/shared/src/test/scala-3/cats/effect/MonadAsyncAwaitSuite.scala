@@ -16,21 +16,29 @@
 
 package cats.effect
 
-import org.specs2.execute.{Typecheck, TypecheckError}
-import org.specs2.mutable.Specification
+import cats.syntax.all._
+import cps._
+import munit.FunSuite
 
-class AsyncAwaitCompilationSpec extends Specification {
-  import cps._
+class MonadAsyncAwaitSuite extends FunSuite {
 
-  "async[F]" should {
-    "prevent compilation of await[G, *] calls" in {
-      val tc = Typecheck("async[({ type L[a] = cats.data.OptionT[IO, a] })#L](IO(1).await)").result
-      tc must beLike {
-        case TypecheckError(message) =>
-          message must contain("expected await to be called on")
-          message must contain("cats.data.OptionT")
-          message must contain("but was called on cats.effect.IO[Int]")
-      }
+  test("async[Option] - be Some") {
+    val option = async[Option] {
+      val a = "a".some.await
+      val b = Option.when(1 + 1 == 2)("b").await
+      a + b
     }
+
+    assert(option == Some("ab"))
+  }
+
+  test("async[Option] - be None") {
+    val option = async[Option] {
+      val a = "a".some.await
+      val b = Option.when(1 + 1 == 3)("b").await
+      a + b
+    }
+
+    assert(option == None)
   }
 }

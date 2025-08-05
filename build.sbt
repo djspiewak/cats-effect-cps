@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-name := "cats-effect-cps"
+name := "cats-effect-direct"
 
-ThisBuild / tlBaseVersion := "0.5"
+ThisBuild / tlBaseVersion := "1.0"
 
 ThisBuild / startYear := Some(2021)
 
@@ -33,14 +33,14 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   }
 }
 
-val CatsEffectVersion = "3.6.1"
+val CatsEffectVersion = "3.7.0-RC1"
 
 lazy val root = tlCrossRootProject.aggregate(core)
 
 lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .in(file("core"))
   .settings(
-    name := "cats-effect-cps",
+    name := "cats-effect-direct",
     headerEndYear := Some(2022),
     scalacOptions ++= {
       if (tlIsScala3.value)
@@ -55,18 +55,14 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "org.typelevel" %% "scalac-compat-annotation" % "0.1.4",
       "org.typelevel" %%% "cats-effect-std" % CatsEffectVersion,
       "org.typelevel" %%% "cats-effect" % CatsEffectVersion % Test,
-      "org.typelevel" %%% "cats-effect-testing-specs2" % "1.6.0" % Test
+      "org.typelevel" %%% "munit-cats-effect" % "2.2.0-RC1" % Test
     ),
     libraryDependencies ++= {
       if (tlIsScala3.value)
-        Seq("com.github.rssh" %%% "dotty-cps-async" % "0.9.21")
+        Seq("io.github.dotty-cps-async" %%% "dotty-cps-async" % "1.1.2")
       else
         Seq(
           "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided"
         )
     }
-  )
-  .nativeSettings(
-    crossScalaVersions := (ThisBuild / crossScalaVersions).value
-      .filter(_.startsWith("3."))
   )
