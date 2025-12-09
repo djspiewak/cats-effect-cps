@@ -56,7 +56,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
     case object Boom extends Throwable
 
     def boom(): Unit = throw Boom
-    val program = async[IO](implicit _ => boom())
+    val program = async[IO](_ => boom())
 
     program.attempt.flatMap { res =>
       IO {
@@ -99,7 +99,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
 
   test("async[IO] - suspend side effects") {
     var x = 0
-    val program = async[IO](implicit _ => x += 1)
+    val program = async[IO](_ => x += 1)
 
     for {
       _ <- IO(assertEquals(x, 0))

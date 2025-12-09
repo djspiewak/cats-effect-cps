@@ -24,9 +24,6 @@ import jdk.internal.vm.{Continuation, ContinuationScope}
 
 object direct extends DirectCompat {
 
-  // TODO maybe I should make a new one each time?
-  private[this] val Scope = new ContinuationScope("cats-effect-direct")
-
   private[effect] def asyncImpl[F[_]: Sync, A](body: Await[F] => A): F[A] = {
     def loop(cont: Continuation, box: Await[F]): F[Unit] = {
       Sync[F].delay(cont.run()) >> Sync[F].defer {
@@ -44,8 +41,9 @@ object direct extends DirectCompat {
     }
 
     Sync[F].defer {
-      val box = new Await[F]
-      val cont = new Continuation(Scope, { () =>
+      val scope = new ContinuationScope("cats-effect-direct")
+      val box = new Await[F](scope)
+      val cont = new Continuation(scope, { () =>
         box.result = body(box)
       })
 
@@ -55,7 +53,7 @@ object direct extends DirectCompat {
     }
   }
 
-  final class Await[F[_]] private[direct] () {
+  final class Await[F[_]] private[direct] (private[direct] val scope: ContinuationScope) {
     private[direct] var next: F[Any] = _
     private[direct] var result: Any = _
   }
@@ -63,7 +61,7 @@ object direct extends DirectCompat {
   implicit final class AwaitSyntax[F[_], A](val self: F[A]) extends AnyVal {
     def await(implicit await: Await[F]): A = {
       await.next = self.asInstanceOf[F[Any]]
-      Continuation.`yield`(Scope)
+      Continuation.`yield`(await.scope)
       await.result.asInstanceOf[A]
     }
   }
