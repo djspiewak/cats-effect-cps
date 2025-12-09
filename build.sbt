@@ -44,8 +44,6 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(
     name := "cats-effect-direct",
     headerEndYear := Some(2026),
-    javaOptions ++= Seq("--add-exports", "java.base/jdk.internal.vm=ALL-UNNAMED"),
-    Test / fork := true,
     tlFatalWarnings := {
       tlFatalWarnings.value && !tlIsScala3.value
     },
@@ -55,4 +53,8 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "org.typelevel" %%% "cats-effect" % CatsEffectVersion % Test,
       "org.typelevel" %%% "munit-cats-effect" % "2.2.0-RC1" % Test
     )
+  )
+  .jvmSettings(
+    javaOptions ++= Seq("--add-exports", "java.base/jdk.internal.vm=ALL-UNNAMED"),
+    Test / fork := true
   )
