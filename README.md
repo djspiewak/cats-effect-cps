@@ -115,7 +115,7 @@ Alternatively, and preferrably for this example, you could just `await` an `IO.s
 ```scala
 async[IO]:
   IO.println("we're here").await
-  IO.sleep(1.second)
+  IO.sleep(1.second).await
   IO.println("now we're here").await
 ```
 
