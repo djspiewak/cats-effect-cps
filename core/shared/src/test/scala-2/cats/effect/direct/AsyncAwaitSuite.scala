@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 Typelevel
+ * Copyright 2021-2026 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,14 +23,14 @@ import munit.CatsEffectSuite
 
 import scala.concurrent.duration._
 
-import cps._
+import direct._
 
 class AsyncAwaitSuite extends CatsEffectSuite {
 
   test("async[IO] - work on success") {
     val io = IO.sleep(100.millis) >> IO.pure(1)
 
-    val program = async[IO](io.await + io.await)
+    val program = async[IO](implicit a => io.await + io.await)
 
     program.flatMap { res =>
       IO {
@@ -43,7 +43,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
     case object Boom extends Throwable
     val io = IO.raiseError[Int](Boom)
 
-    val program = async[IO](io.await)
+    val program = async[IO](implicit a => io.await)
 
     program.attempt.flatMap { res =>
       IO {
@@ -56,7 +56,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
     case object Boom extends Throwable
 
     def boom(): Unit = throw Boom
-    val program = async[IO](boom())
+    val program = async[IO](implicit _ => boom())
 
     program.attempt.flatMap { res =>
       IO {
@@ -68,7 +68,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
   test("async[IO] - propagate canceled outcomes outward") {
     val io = IO.canceled
 
-    val program = async[IO](io.await)
+    val program = async[IO](implicit a => io.await)
 
     program.start.flatMap(_.join).flatMap { res =>
       IO {
@@ -80,7 +80,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
   test("async[IO] - be cancellable") {
     val program = for {
       ref <- Ref[IO].of(0)
-      _ <- async[IO] {
+      _ <- async[IO] { implicit a =>
         IO.never[Unit].await
         ref.update(_ + 1).await
       }.start.flatMap(_.cancel)
@@ -99,7 +99,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
 
   test("async[IO] - suspend side effects") {
     var x = 0
-    val program = async[IO](x += 1)
+    val program = async[IO](implicit _ => x += 1)
 
     for {
       _ <- IO(assertEquals(x, 0))
@@ -115,7 +115,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
 
     val io = Temporal[F].sleep(100.millis) >> Kleisli(x => IO.pure(x + 1))
 
-    val program = async[F](io.await + io.await)
+    val program = async[F](implicit a => io.await + io.await)
 
     program.run(0).flatMap { res =>
       IO {
@@ -127,7 +127,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
   test("async[OptionT[IO, *]] - work on successes") {
     val io = Temporal[OptionT[IO, *]].sleep(100.millis) >> OptionT.pure[IO](1)
 
-    val program = async[OptionT[IO, *]](io.await + io.await)
+    val program = async[OptionT[IO, *]](implicit a => io.await + io.await)
 
     program.value.flatMap { res =>
       IO {
@@ -140,7 +140,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
     val io1 = OptionT.pure[IO](1)
     val io2 = OptionT.none[IO, Int]
 
-    val program = async[OptionT[IO, *]](io1.await + io2.await)
+    val program = async[OptionT[IO, *]](implicit a => io1.await + io2.await)
 
     program.value.flatMap { res =>
       IO {
@@ -155,7 +155,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
     test("async[OptionT[OptionT[IO, *], *] - surface None at the right layer (1)") {
       val io = OptionT.liftF(OptionT.none[IO, Int])
 
-      val program = async[F](io.await)
+      val program = async[F](implicit a => io.await)
 
       program.value.value.flatMap { res =>
         IO {
@@ -168,7 +168,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
       val io1 = 1.pure[F]
       val io2 = OptionT.none[OptionT[IO, *], Int]
 
-      val program = async[F](io1.await + io2.await)
+      val program = async[F](implicit a => io1.await + io2.await)
 
       program.value.value.flatMap { res =>
         IO {
@@ -183,7 +183,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
 
     val io1 = WriterT(IO((1, 3)))
 
-    val program = async[F](io1.await * io1.await)
+    val program = async[F](implicit a => io1.await * io1.await)
 
     program.run.flatMap { res =>
       IO {
@@ -197,8 +197,8 @@ class AsyncAwaitSuite extends CatsEffectSuite {
   test("async[F] - respect nested async[G] calls") {
     val optionT = OptionT.liftF(IO(1))
 
-    val program = async[IO]{
-      async[OptionTIO](optionT.await).value.await
+    val program = async[IO] { implicit a =>
+      async[OptionTIO](implicit b => optionT.await).value.await
     }
 
     program.flatMap { res =>
@@ -209,7 +209,7 @@ class AsyncAwaitSuite extends CatsEffectSuite {
   }
 
   test("async[F] - allow for polymorphic usage") {
-    def foo[F[_] : Async] = async[F]{ 1.pure[F].await }
+    def foo[F[_] : Async] = async[F] { implicit a => 1.pure[F].await }
 
     foo[IO].flatMap { res =>
       IO {

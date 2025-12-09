@@ -33,6 +33,8 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   }
 }
 
+ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("21"))
+
 val CatsEffectVersion = "3.7.0-RC1"
 
 lazy val root = tlCrossRootProject.aggregate(core)
@@ -41,13 +43,9 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .in(file("core"))
   .settings(
     name := "cats-effect-direct",
-    headerEndYear := Some(2022),
-    scalacOptions ++= {
-      if (tlIsScala3.value)
-        Seq()
-      else
-        Seq("-Xasync")
-    },
+    headerEndYear := Some(2026),
+    javaOptions ++= Seq("--add-exports", "java.base/jdk.internal.vm=ALL-UNNAMED"),
+    Test / fork := true,
     tlFatalWarnings := {
       tlFatalWarnings.value && !tlIsScala3.value
     },
@@ -56,13 +54,5 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "org.typelevel" %%% "cats-effect-std" % CatsEffectVersion,
       "org.typelevel" %%% "cats-effect" % CatsEffectVersion % Test,
       "org.typelevel" %%% "munit-cats-effect" % "2.2.0-RC1" % Test
-    ),
-    libraryDependencies ++= {
-      if (tlIsScala3.value)
-        Seq("io.github.dotty-cps-async" %%% "dotty-cps-async" % "1.1.2")
-      else
-        Seq(
-          "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided"
-        )
-    }
+    )
   )

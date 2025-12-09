@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 Typelevel
+ * Copyright 2021-2026 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,29 +16,14 @@
 
 package cats.effect
 
-import cats.syntax.all._
-import cps._
-import munit.FunSuite
+import cats.effect.kernel.Sync
 
-class MonadAsyncAwaitSuite extends FunSuite {
+private[effect] abstract class DirectCompat { this: direct.type =>
 
-  test("async[Option] - be Some") {
-    val option = async[Option] {
-      val a = "a".some.await
-      val b = Option.when(1 + 1 == 2)("b").await
-      a + b
-    }
+  def async[F[_]]: AsyncSyntax[F] = new AsyncSyntax[F]
 
-    assert(option == Some("ab"))
-  }
-
-  test("async[Option] - be None") {
-    val option = async[Option] {
-      val a = "a".some.await
-      val b = Option.when(1 + 1 == 3)("b").await
-      a + b
-    }
-
-    assert(option == None)
+  final class AsyncSyntax[F[_]] {
+    def apply[A](body: Await[F] => A)(implicit F: Sync[F]): F[A] =
+      asyncImpl[F, A](body)
   }
 }
