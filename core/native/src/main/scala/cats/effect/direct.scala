@@ -24,30 +24,60 @@ import scalanative.runtime.Continuations._
 // TODO all of this is Scala 3 only
 object direct extends DirectCompat {
 
-  private[effect] def asyncImpl[F[_]: Sync, A](body: Await[F] => A): F[A] =
-    boundary[F[A]] {
-      Sync[F].delay {
-        val await = new Await[F] {
-          type Result = A
-          val label = implicitly[BoundaryLabel[F[A]]]
-        }
+  private[effect] def asyncImpl[F[_]: Sync, A](body: Await[F] => A): F[A] = {
+    val await = new Await[F] {
+      type Result = A
+      var label = null.asInstanceOf
+    }
 
-        body(await)
+    def loop(body: => Either[Step[F, A], A]): F[A] = {
+      val next = Sync[F].delay {
+        boundary[Either[Step[F, A], A]] {
+          // this is a new label with each step
+          // really it's easiest to think of this like setting and calling a longjmp
+          await.label = implicitly[BoundaryLabel[Either[Step[F, A], A]]]
+          body
+        }
+      }
+
+      next.flatMap {
+        case Left(step) =>
+          step.fe.flatMap(e => loop(step.f(e)))
+
+        case Right(a) =>
+          a.pure[F]
       }
     }
 
-  sealed abstract class Await[F[_]] private[direct] (private[direct] implicit val F: Sync[F]) {
+    loop(Right(body(await)))
+  }
+
+  // kind of like a yoneda, but actually free flatMap due to the CPS
+  private[direct] sealed abstract class Step[F[_], A] {
+    type E
+    val fe: F[E]
+    val f: E => Either[Step[F, A], A]
+  }
+
+  sealed abstract class Await[F[_]] {
     private[direct] type Result
-    private[direct] val label: BoundaryLabel[F[Result]]
+
+    // we recreate the boundary with each step, so this needs to be mutable
+    private[direct] var label: BoundaryLabel[Either[Step[F, Result], Result]]
   }
 
   implicit final class AwaitSyntax[F[_], A](val self: F[A]) extends AnyVal {
     def await(implicit await: Await[F]): A = {
-      implicit val F: Sync[F] = await.F
-      implicit val label: BoundaryLabel[F[await.Result]] = await.label
+      implicit val label: BoundaryLabel[Either[Step[F, await.Result], await.Result]] = await.label
 
-      suspend[A, F[await.Result]] { k =>
-        self.flatMap(a => F.defer(k(a)))
+      suspend[A, Either[Step[F, await.Result], await.Result]] { k =>
+        val step = new Step[F, await.Result] {
+          type E = A
+          val fe = self
+          val f = k
+        }
+
+        Left(step)
       }
     }
   }
