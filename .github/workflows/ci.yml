@@ -30,7 +30,7 @@ jobs:
         os: [ubuntu-22.04]
         scala: [2.12, 2.13, 3]
         java: [temurin@21]
-        project: [rootJS, rootJVM, rootNative]
+        project: [rootJVM, rootNative]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -62,10 +62,6 @@ jobs:
         if: matrix.java == 'temurin@21' && matrix.os == 'ubuntu-22.04'
         run: sbt 'project ${{ matrix.project }}' '++ ${{ matrix.scala }}' headerCheckAll scalafmtCheckAll 'project /' scalafmtSbtCheck
 
-      - name: scalaJSLink
-        if: matrix.project == 'rootJS'
-        run: sbt 'project ${{ matrix.project }}' '++ ${{ matrix.scala }}' Test/scalaJSLinkerResult
-
       - name: nativeLink
         if: matrix.project == 'rootNative'
         run: sbt 'project ${{ matrix.project }}' '++ ${{ matrix.scala }}' Test/nativeLink
@@ -83,11 +79,11 @@ jobs:
 
       - name: Make target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
-        run: mkdir -p core/native/target core/js/target core/jvm/target project/target
+        run: mkdir -p core/native/target core/jvm/target project/target
 
       - name: Compress target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
-        run: tar cf targets.tar core/native/target core/js/target core/jvm/target project/target
+        run: tar cf targets.tar core/native/target core/jvm/target project/target
 
       - name: Upload target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
@@ -127,16 +123,6 @@ jobs:
         if: matrix.java == 'temurin@21' && steps.setup-java-temurin-21.outputs.cache-hit == 'false'
         run: sbt +update
 
-      - name: Download target directories (2.12, rootJS)
-        uses: actions/download-artifact@v4
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12-rootJS
-
-      - name: Inflate target directories (2.12, rootJS)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
       - name: Download target directories (2.12, rootJVM)
         uses: actions/download-artifact@v4
         with:
@@ -157,16 +143,6 @@ jobs:
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13, rootJS)
-        uses: actions/download-artifact@v4
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13-rootJS
-
-      - name: Inflate target directories (2.13, rootJS)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
       - name: Download target directories (2.13, rootJVM)
         uses: actions/download-artifact@v4
         with:
@@ -183,16 +159,6 @@ jobs:
           name: target-${{ matrix.os }}-${{ matrix.java }}-2.13-rootNative
 
       - name: Inflate target directories (2.13, rootNative)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (3, rootJS)
-        uses: actions/download-artifact@v4
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3-rootJS
-
-      - name: Inflate target directories (3, rootJS)
         run: |
           tar xf targets.tar
           rm targets.tar

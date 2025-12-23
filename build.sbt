@@ -39,7 +39,7 @@ val CatsEffectVersion = "3.7.0-RC1"
 
 lazy val root = tlCrossRootProject.aggregate(core)
 
-lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+lazy val core = crossProject(JVMPlatform, /*JSPlatform,*/ NativePlatform)
   .in(file("core"))
   .settings(
     name := "cats-effect-direct",
