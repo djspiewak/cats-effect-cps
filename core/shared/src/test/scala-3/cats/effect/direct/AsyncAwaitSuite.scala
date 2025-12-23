@@ -65,6 +65,26 @@ class AsyncAwaitSuite extends CatsEffectSuite {
     }
   }
 
+  test("async[IO] - errors are catchable") {
+    case object Boom extends RuntimeException
+
+    val program = async[IO] {
+      try {
+        IO.raiseError(Boom).await
+
+        false
+      } catch {
+        case Boom => true
+      }
+    }
+
+    program.attempt.flatMap { res =>
+      IO {
+        assertEquals(res, Right(true))
+      }
+    }
+  }
+
   test("async[IO] - propagate canceled outcomes outward") {
     val io = IO.canceled
 

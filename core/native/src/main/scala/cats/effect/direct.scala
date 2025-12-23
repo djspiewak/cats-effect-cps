@@ -42,7 +42,7 @@ object direct extends DirectCompat {
 
       next.flatMap {
         case Left(step) =>
-          step.fe.flatMap(e => loop(step.f(e)))
+          step.fe.attempt.flatMap(e => loop(step.f(e)))
 
         case Right(a) =>
           a.pure[F]
@@ -56,7 +56,7 @@ object direct extends DirectCompat {
   private[direct] sealed abstract class Step[F[_], A] {
     type E
     val fe: F[E]
-    val f: E => Either[Step[F, A], A]
+    val f: Either[Throwable, E] => Either[Step[F, A], A]
   }
 
   sealed abstract class Await[F[_]] {
@@ -70,7 +70,7 @@ object direct extends DirectCompat {
     def await(implicit await: Await[F]): A = {
       implicit val label: BoundaryLabel[Either[Step[F, await.Result], await.Result]] = await.label
 
-      suspend[A, Either[Step[F, await.Result], await.Result]] { k =>
+      val result = suspend[Either[Throwable, A], Either[Step[F, await.Result], await.Result]] { k =>
         val step = new Step[F, await.Result] {
           type E = A
           val fe = self
@@ -78,6 +78,11 @@ object direct extends DirectCompat {
         }
 
         Left(step)
+      }
+
+      result match {
+        case Left(t) => throw t
+        case Right(a) => a
       }
     }
   }

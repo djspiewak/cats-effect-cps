@@ -28,7 +28,7 @@ object direct extends DirectCompat {
     def loop(cont: Continuation, box: Await[F]): F[Unit] = {
       Sync[F].delay(cont.run()) >> Sync[F].defer {
         if (box.next != null) {
-          box.next.flatMap { r =>
+          box.next.attempt.flatMap { r =>
             Sync[F].delay {
               box.next = null.asInstanceOf[F[Any]]
               box.result = r
@@ -44,25 +44,32 @@ object direct extends DirectCompat {
       val scope = new ContinuationScope("cats-effect-direct")
       val box = new Await[F](scope)
       val cont = new Continuation(scope, { () =>
-        box.result = body(box)
+        box.result = Right(body(box))
       })
 
       loop(cont, box) *> Sync[F].delay {
-        box.result.asInstanceOf[A]
+        box.result.asInstanceOf[Either[Throwable, A]] match {
+          case Left(t) => throw t
+          case Right(a) => a
+        }
       }
     }
   }
 
   final class Await[F[_]] private[direct] (private[direct] val scope: ContinuationScope) {
     private[direct] var next: F[Any] = _
-    private[direct] var result: Any = _
+    private[direct] var result: Either[Throwable, Any] = _
   }
 
   implicit final class AwaitSyntax[F[_], A](val self: F[A]) extends AnyVal {
     def await(implicit await: Await[F]): A = {
       await.next = self.asInstanceOf[F[Any]]
       Continuation.`yield`(await.scope)
-      await.result.asInstanceOf[A]
+
+      await.result.asInstanceOf[Either[Throwable, A]] match {
+        case Left(t) => throw t
+        case Right(a) => a
+      }
     }
   }
 }
