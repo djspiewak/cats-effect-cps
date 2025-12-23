@@ -130,6 +130,29 @@ class AsyncAwaitSuite extends CatsEffectSuite {
     } yield ()
   }
 
+  /*test("async[IO] - do weird things with threads") {
+    // JVM: produces an IllegalStateException (continuation terminated)
+    // Native: produces an Unrecoverable NPE and terminates the process
+    val program = async[IO] {
+      // JVM: produces an IllegalStateException (not in scope cats-effect-direct)
+      val t1 = new Thread({ () => IO.unit.await })
+      t1.start()
+      t1.join()
+    }
+
+    program.flatMap(_ => IO(assertEquals(true, true)))
+  }*/
+
+  // note this isn't multishot because the monad we're flatMapping on is single-shot
+  test("async[IO] - pretend to be traverse") {
+    val program = async[IO] {
+      val xs = List(1, 2, 3)
+      xs.map(i => IO(i * 2).await)
+    }
+
+    program.flatMap(i => IO(assertEquals(i, List(2, 4, 6))))
+  }
+
   test("async[Kleisli[IO, R, *]] - work on successes") {
     type F[A] = Kleisli[IO, Int, A]
 
