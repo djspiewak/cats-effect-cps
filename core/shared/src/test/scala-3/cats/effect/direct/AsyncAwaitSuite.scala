@@ -130,18 +130,38 @@ class AsyncAwaitSuite extends CatsEffectSuite {
     } yield ()
   }
 
-  /*test("async[IO] - do weird things with threads") {
-    // JVM: produces an IllegalStateException (continuation terminated)
-    // Native: produces an Unrecoverable NPE and terminates the process
+  test("async[IO] - async without await") {
+    async[IO](42).flatMap(i => IO(assertEquals(i, 42)))
+  }
+
+  test("async[IO] - do weird things with threads") {
     val program = async[IO] {
-      // JVM: produces an IllegalStateException (not in scope cats-effect-direct)
-      val t1 = new Thread({ () => IO.unit.await })
+      var caught = false
+      var message = ""
+
+      val t1 = new Thread({ () =>
+        try {
+          IO.unit.await
+        } catch {
+          case t: IllegalStateException =>
+            caught = true
+            message = t.getMessage()
+        }
+      })
       t1.start()
       t1.join()
+
+      (caught, message)
     }
 
-    program.flatMap(_ => IO(assertEquals(true, true)))
-  }*/
+    program flatMap {
+      case (caught, message) =>
+        IO {
+          assertEquals(caught, true)
+          assertEquals(message, "call to await from a different thread than surrounding async")
+        }
+    }
+  }
 
   // note this isn't multishot because the monad we're flatMapping on is single-shot
   test("async[IO] - pretend to be traverse") {

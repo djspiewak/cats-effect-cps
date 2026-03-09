@@ -25,20 +25,21 @@ import jdk.internal.vm.{Continuation, ContinuationScope}
 object direct extends DirectCompat {
 
   private[effect] def asyncImpl[F[_]: Sync, A](body: Await[F] => A): F[A] = {
-    def loop(cont: Continuation, box: Await[F]): F[Unit] = {
-      Sync[F].delay(cont.run()) >> Sync[F].defer {
-        if (box.next != null) {
-          box.next.attempt.flatMap { r =>
-            Sync[F].delay {
-              box.next = null.asInstanceOf[F[Any]]
-              box.result = r
-            } >> loop(cont, box)
+    def loop(cont: Continuation, box: Await[F]): F[Unit] =
+      Sync[F].delay(cont.isDone()).ifM(
+        Applicative[F].unit,
+        Sync[F].delay(cont.run()) >> Sync[F].defer {
+          if (box.next != null) {
+            box.next.attempt.flatMap { r =>
+              Sync[F].delay {
+                box.next = null.asInstanceOf[F[Any]]
+                box.result = r
+              } >> loop(cont, box)
+            }
+          } else {
+            Applicative[F].unit
           }
-        } else {
-          Applicative[F].unit
-        }
-      }
-    }
+        })
 
     Sync[F].defer {
       val scope = new ContinuationScope("cats-effect-direct")
@@ -48,9 +49,16 @@ object direct extends DirectCompat {
       })
 
       loop(cont, box) *> Sync[F].delay {
-        box.result.asInstanceOf[Either[Throwable, A]] match {
-          case Left(t) => throw t
-          case Right(a) => a
+        box.result match {
+          case null =>
+            throw new IllegalStateException(
+              "async block terminated prematurely without producing a result")
+
+          case Left(t) =>
+            throw t
+
+          case Right(a) =>
+            a.asInstanceOf[A]
         }
       }
     }
@@ -64,7 +72,14 @@ object direct extends DirectCompat {
   implicit final class AwaitSyntax[F[_], A](val self: F[A]) extends AnyVal {
     def await(implicit await: Await[F]): A = {
       await.next = self.asInstanceOf[F[Any]]
-      Continuation.`yield`(await.scope)
+
+      try {
+        Continuation.`yield`(await.scope)
+      } catch {
+        case t: IllegalStateException =>
+          await.next = null.asInstanceOf[F[Any]]
+          throw new IllegalStateException("call to await from a different thread than surrounding async", t)
+      }
 
       await.result.asInstanceOf[Either[Throwable, A]] match {
         case Left(t) => throw t

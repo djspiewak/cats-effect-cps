@@ -36,6 +36,7 @@ object direct extends DirectCompat {
           // this is a new label with each step
           // really it's easiest to think of this like setting and calling a longjmp
           await.label = implicitly[BoundaryLabel[Either[Step[F, A], A]]]
+          await.carrier = Thread.currentThread()
           body
         }
       }
@@ -64,25 +65,30 @@ object direct extends DirectCompat {
 
     // we recreate the boundary with each step, so this needs to be mutable
     private[direct] var label: BoundaryLabel[Either[Step[F, Result], Result]]
+    private[direct] var carrier: Thread = _
   }
 
   implicit final class AwaitSyntax[F[_], A](val self: F[A]) extends AnyVal {
     def await(implicit await: Await[F]): A = {
       implicit val label: BoundaryLabel[Either[Step[F, await.Result], await.Result]] = await.label
 
-      val result = suspend[Either[Throwable, A], Either[Step[F, await.Result], await.Result]] { k =>
-        val step = new Step[F, await.Result] {
-          type E = A
-          val fe = self
-          val f = k
+      if (await.carrier == Thread.currentThread()) {
+        val result = suspend[Either[Throwable, A], Either[Step[F, await.Result], await.Result]] { k =>
+          val step = new Step[F, await.Result] {
+            type E = A
+            val fe = self
+            val f = k
+          }
+
+          Left(step)
         }
 
-        Left(step)
-      }
-
-      result match {
-        case Left(t) => throw t
-        case Right(a) => a
+        result match {
+          case Left(t) => throw t
+          case Right(a) => a
+        }
+      } else {
+        throw new IllegalStateException("call to await from a different thread than surrounding async")
       }
     }
   }
