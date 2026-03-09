@@ -33,7 +33,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   }
 }
 
-val CatsEffectVersion = "3.7.0-RC1"
+val CatsEffectVersion = "3.7.0"
 
 lazy val root = tlCrossRootProject.aggregate(core)
 
@@ -55,7 +55,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "org.typelevel" %% "scalac-compat-annotation" % "0.1.4",
       "org.typelevel" %%% "cats-effect-std" % CatsEffectVersion,
       "org.typelevel" %%% "cats-effect" % CatsEffectVersion % Test,
-      "org.typelevel" %%% "munit-cats-effect" % "2.2.0-RC1" % Test
+      "org.typelevel" %%% "munit-cats-effect" % "2.2.0" % Test
     ),
     libraryDependencies ++= {
       if (tlIsScala3.value)
