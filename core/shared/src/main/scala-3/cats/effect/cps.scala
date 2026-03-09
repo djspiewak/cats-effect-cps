@@ -18,7 +18,7 @@ package cats.effect
 
 import _root_.cps._
 import cats.effect.kernel.syntax.all._
-import cats.effect.kernel.{Async, Concurrent, Fiber, Sync}
+import cats.effect.kernel.{Async, Fiber, Sync}
 import cats.{Monad, MonadThrow}
 
 import scala.util.Try
@@ -70,7 +70,7 @@ object cps {
       Async[F].async_(f => source(e => f(e.toEither)))
   }
 
-  abstract class ConcurrentCpsMonad[F[_]: Async: Concurrent]
+  abstract class ConcurrentCpsMonad[F[_]: Async]
       extends AsyncCpsMonad[F]
       with CpsConcurrentEffectMonad[F] {
     override type Spawned[A] = Fiber[F, Throwable, A]
@@ -94,7 +94,7 @@ object cps {
   implicit def catsAsyncCps[F[_]](implicit F: Async[F]): CpsAsyncEffectMonad[F] = new AsyncCpsMonad[F]
     with CpsAsyncEffectMonadInstanceContext[F]
 
-  implicit def catsConcurrentCps[F[_]](implicit F: Async[F], concurrent: Concurrent[F]): CpsConcurrentEffectMonad[F] =
+  implicit def catsConcurrentCps[F[_]](implicit F: Async[F]): CpsConcurrentEffectMonad[F] =
     new ConcurrentCpsMonad[F] with CpsConcurrentEffectMonadInstanceContext[F]
 
 }
