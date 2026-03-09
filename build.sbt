@@ -25,17 +25,17 @@ ThisBuild / developers := List(
   tlGitHubDev("baccata", "Olivier Melois")
 )
 
-ThisBuild / crossScalaVersions := Seq("2.12.20", "2.13.16", "3.3.6")
+ThisBuild / crossScalaVersions := Seq("2.12.21", "2.13.18", "3.3.7")
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
-  crossScalaVersions.value.filter(_.startsWith("2.")).map { scala =>
-    MatrixExclude(Map("scala" -> scala, "project" -> "rootNative"))
+  (ThisBuild / crossScalaVersions).value.filter(_.startsWith("2.")).map { scala =>
+    MatrixExclude(Map("scala" -> scala.substring(0, scala.lastIndexOf('.')), "project" -> "rootNative"))
   }
 }
 
 ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("21"))
 
-val CatsEffectVersion = "3.7.0-RC1"
+val CatsEffectVersion = "3.7.0"
 
 lazy val root = tlCrossRootProject.aggregate(core)
 
@@ -51,10 +51,12 @@ lazy val core = crossProject(JVMPlatform, /*JSPlatform,*/ NativePlatform)
       "org.typelevel" %% "scalac-compat-annotation" % "0.1.4",
       "org.typelevel" %%% "cats-effect-std" % CatsEffectVersion,
       "org.typelevel" %%% "cats-effect" % CatsEffectVersion % Test,
-      "org.typelevel" %%% "munit-cats-effect" % "2.2.0-RC1" % Test
+      "org.typelevel" %%% "munit-cats-effect" % "2.2.0" % Test
     )
   )
   .jvmSettings(
     javaOptions ++= Seq("--add-exports", "java.base/jdk.internal.vm=ALL-UNNAMED"),
     Test / fork := true
   )
+  .nativeSettings(
+    crossScalaVersions := (ThisBuild / crossScalaVersions).value.filter(_.startsWith("3.")))
