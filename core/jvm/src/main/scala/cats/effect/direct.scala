@@ -37,6 +37,8 @@ object direct extends DirectCompat {
               } >> loop(cont, box)
             }
           } else {
+            // TODO I'm guessing that preemption and/or yielding will eventually show up here
+            // (it doesn't today though; yield seems to be ignored)
             Applicative[F].unit
           }
         })

@@ -163,6 +163,15 @@ class AsyncAwaitSuite extends CatsEffectSuite {
     }
   }
 
+  test("async[IO] - allow for Thread.yield") {
+    val program = async[IO] {
+      Thread.`yield`()
+      42
+    }
+
+    program.flatMap(i => IO(assertEquals(i, 42)))
+  }
+
   // note this isn't multishot because the monad we're flatMapping on is single-shot
   test("async[IO] - pretend to be traverse") {
     val program = async[IO] {

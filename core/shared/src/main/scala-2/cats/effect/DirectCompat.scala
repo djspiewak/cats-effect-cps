@@ -16,14 +16,14 @@
 
 package cats.effect
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.Async
 
 private[effect] abstract class DirectCompat { this: direct.type =>
 
   def async[F[_]]: AsyncSyntax[F] = new AsyncSyntax[F]
 
   final class AsyncSyntax[F[_]] {
-    def apply[A](body: Await[F] => A)(implicit F: Sync[F]): F[A] =
+    def apply[A](body: Await[F] => A)(implicit F: Async[F]): F[A] =
       asyncImpl[F, A](body)
   }
 }
