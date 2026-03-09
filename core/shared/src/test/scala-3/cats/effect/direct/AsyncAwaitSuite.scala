@@ -21,6 +21,7 @@ import cats.data.{Kleisli, OptionT, WriterT}
 
 import munit.CatsEffectSuite
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import direct._
@@ -170,6 +171,24 @@ class AsyncAwaitSuite extends CatsEffectSuite {
     }
 
     program.flatMap(i => IO(assertEquals(i, 42)))
+  }
+
+  test("async[IO] - handle carrier thread movement") {
+    val ec = new ExecutionContext {
+      def execute(r: Runnable): Unit =
+        new Thread(r).start()
+
+      def reportFailure(t: Throwable) =
+        t.printStackTrace()
+    }
+
+    val program = async[IO] {
+      IO.cede.await
+      IO.cede.await
+      42
+    }
+
+    program.evalOn(ec).flatMap(i => IO(assertEquals(i, 42)))
   }
 
   // note this isn't multishot because the monad we're flatMapping on is single-shot
