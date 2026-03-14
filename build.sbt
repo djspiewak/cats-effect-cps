@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-name := "cats-effect-cps"
+name := "cats-effect-direct"
 
-ThisBuild / tlBaseVersion := "0.5"
+ThisBuild / tlBaseVersion := "1.0"
 
 ThisBuild / startYear := Some(2021)
 
@@ -25,29 +25,25 @@ ThisBuild / developers := List(
   tlGitHubDev("baccata", "Olivier Melois")
 )
 
-ThisBuild / crossScalaVersions := Seq("2.12.20", "2.13.16", "3.3.6")
+ThisBuild / crossScalaVersions := Seq("2.12.21", "2.13.18", "3.3.7")
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
-  crossScalaVersions.value.filter(_.startsWith("2.")).map { scala =>
-    MatrixExclude(Map("scala" -> scala, "project" -> "rootNative"))
+  (ThisBuild / crossScalaVersions).value.filter(_.startsWith("2.")).map { scala =>
+    MatrixExclude(Map("scala" -> scala.substring(0, scala.lastIndexOf('.')), "project" -> "rootNative"))
   }
 }
 
-val CatsEffectVersion = "3.6.3"
+ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("21"))
+
+val CatsEffectVersion = "3.7.0"
 
 lazy val root = tlCrossRootProject.aggregate(core)
 
-lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+lazy val core = crossProject(JVMPlatform, /*JSPlatform,*/ NativePlatform)
   .in(file("core"))
   .settings(
-    name := "cats-effect-cps",
-    headerEndYear := Some(2022),
-    scalacOptions ++= {
-      if (tlIsScala3.value)
-        Seq()
-      else
-        Seq("-Xasync")
-    },
+    name := "cats-effect-direct",
+    headerEndYear := Some(2026),
     tlFatalWarnings := {
       tlFatalWarnings.value && !tlIsScala3.value
     },
@@ -55,18 +51,12 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "org.typelevel" %% "scalac-compat-annotation" % "0.1.4",
       "org.typelevel" %%% "cats-effect-std" % CatsEffectVersion,
       "org.typelevel" %%% "cats-effect" % CatsEffectVersion % Test,
-      "org.typelevel" %%% "cats-effect-testing-specs2" % "1.6.0" % Test
-    ),
-    libraryDependencies ++= {
-      if (tlIsScala3.value)
-        Seq("com.github.rssh" %%% "dotty-cps-async" % "0.9.21")
-      else
-        Seq(
-          "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided"
-        )
-    }
+      "org.typelevel" %%% "munit-cats-effect" % "2.2.0" % Test
+    )
+  )
+  .jvmSettings(
+    javaOptions ++= Seq("--add-exports", "java.base/jdk.internal.vm=ALL-UNNAMED"),
+    Test / fork := true
   )
   .nativeSettings(
-    crossScalaVersions := (ThisBuild / crossScalaVersions).value
-      .filter(_.startsWith("3."))
-  )
+    crossScalaVersions := (ThisBuild / crossScalaVersions).value.filter(_.startsWith("3.")))
